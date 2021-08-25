@@ -12,6 +12,7 @@
 #include <ostream>
 #include <string>
 #include "cuda_runtime_api.h"
+#include "logging.h"
 
 using namespace nvinfer1;
 
@@ -22,6 +23,8 @@ static const int OUTPUT_SIZE = 10;
 
 const char* INPUT_BLOB_NAME = "data";
 const char* OUTPUT_BLOB_NAME = "prob";
+
+static Logger gLogger;
 
 std::map<std::string, Weights> loadWeights(const std::string file){
     std::cout << "Loading weights: " << file << std::endl;
@@ -134,6 +137,23 @@ ICudaEngine* createLenetEngine(unsigned int maxBatchSize, IBuilder* builder, IBu
         free((void*) (mem.second.values));
     }
     return engine;
+}
+
+void APIToModel(unsigned int maxBatchSize, IHostMemory** modelStream){
+    // Create builder
+    IBuilder* builder = createInferBuilder(gLogger);
+    IBuilderConfig* config = builder->createBuilderConfig();
+
+    // Create engine
+    ICudaEngine* engine = createLenetEngine(maxBatchSize, builder, config, DataType::kFLOAT);
+    assert(engine != nullptr);
+
+    // Serialize the engine
+    *modelStream = engine->serialize();
+
+    // Close everything down
+    engine->destroy();
+    builder->destroy();
 }
 
 int main(){
