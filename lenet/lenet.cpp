@@ -156,7 +156,28 @@ void APIToModel(unsigned int maxBatchSize, IHostMemory** modelStream){
     builder->destroy();
 }
 
-int main(){
-    std::map<std::string, Weights> weightMap = loadWeights("../lenet5.wts");
+int main(int argc, char** argv){
+    // std::map<std::string, Weights> weightMap = loadWeights("../lenet5.wts");
+    if (argc != 2){
+        std::cerr << "arguments not rights!" << std::endl;
+        std::cerr << "./lenet -s // serialize model to file" << std::endl;
+        std::cerr << "./lenet -d // deserialize file and run inference" << std::endl;
+        return -1;
+    }
+
+    if (std::string(argv[1]) == "-s"){
+        IHostMemory* modelStream{nullptr};
+        APIToModel(1, &modelStream);
+        assert(modelStream !=nullptr);
+
+        std::ofstream p("lenet5.engine", std::ios::binary);
+        if (!p){
+            std::cerr << "could not open output file!" << std::endl;
+            return -1;
+        }
+        p.write(reinterpret_cast<const char*>(modelStream->data()), modelStream->size());
+        modelStream->destroy();
+        return 1;
+    }
     return 0;    
 }
