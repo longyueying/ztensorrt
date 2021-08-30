@@ -14,6 +14,17 @@
 #include "cuda_runtime_api.h"
 #include "logging.h"
 
+#define CHECK(status) \
+    do \
+    {\
+        auto ret = (status);\
+        if (ret != 0)\
+        {\
+            std::cerr << "Cuda failure: " << ret << std::endl; \
+            abort();\
+        }\
+    }while (0)
+
 using namespace nvinfer1;
 
 // stuff we know about the network and the input/output blobs
