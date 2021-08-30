@@ -167,6 +167,34 @@ void APIToModel(unsigned int maxBatchSize, IHostMemory** modelStream){
     builder->destroy();
 }
 
+void doInference(IExecutionContext& context, float* input, float* output, int batchSize){
+    const ICudaEngine& engine = context.getEngine();
+
+    assert(engine.getNbBindings() == 2);
+    void* buffers[2];
+    const int inputIndex = engine.getBindingIndex(INPUT_BLOB_NAME);
+    const int outputIndex = engine.getBindingIndex(OUTPUT_BLOB_NAME);
+
+    // Create GPU buffers on device
+    CHECK(cudaMalloc(&buffers[inputIndex], batchSize * INPUT_H * INPUT_W * sizeof(float)));
+
+    CHECK(cudaMalloc(&buffers[outputIndex], batchSize * OUTPUT_SIZE * sizeof(float)));
+
+    // Create steam
+    cudaStream_t stream;
+    CHECK(cudaStreamCreate(&stream));
+
+    CHECK(cudaMemcpyAsync(buffers[inputIndex], input, batchSize * INPUT_H * INPUT_W * sizeof(float), cudaMemcpyHostToDevice, stream));
+    context.enqueue(batchSize, buffers, stream, nullptr);
+    CHECK(cudaMemcpyAsync(output, buffers[outputIndex], batchSize * OUTPUT_SIZE * sizeof(float), cudaMemcpyDeviceToHost, stream));
+    cudaStreamSynchronize(stream);
+
+    // Release stream and buffers
+    cudaStreamDestroy(stream);
+    CHECK(cudaFree(buffers[inputIndex]));
+    CHECK(cudaFree(buffers[outputIndex]));
+}
+
 int main(int argc, char** argv){
     // std::map<std::string, Weights> weightMap = loadWeights("../lenet5.wts");
     if (argc != 2){
